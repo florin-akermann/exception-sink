@@ -77,7 +77,6 @@ class MapWithExceptionHandlerTest {
     private MapWithExceptionHandler.ExceptionHandler<String> exceptionHandler() {
         return (value, exception) -> {
             log.warn("exception {}:", exception, exception);
-
         };
     }
 

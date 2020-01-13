@@ -19,8 +19,8 @@ public class MapWithExceptionHandler<I, O> extends GraphStage<FlowShape<I, O>> {
         this.handler = handler;
     }
 
-    public final Inlet<I> in = Inlet.create("MapWithExceptionHandler.in");
-    public final Outlet<O> out = Outlet.create("MapWithExceptionHandler.out");
+    public final Inlet<I> in = Inlet.<I>create("MapWithExceptionHandler.in");
+    public final Outlet<O> out = Outlet.<O>create("MapWithExceptionHandler.out");
 
     private final FlowShape<I, O> shape = FlowShape.apply(in, out);
 
@@ -42,6 +42,8 @@ public class MapWithExceptionHandler<I, O> extends GraphStage<FlowShape<I, O>> {
                                 }
                                 if (result != null) {
                                     push(out, result);
+                                } else if (!hasBeenPulled(in)) {
+                                    pull(in);
                                 }
                             }
                         });

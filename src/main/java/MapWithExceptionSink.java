@@ -1,6 +1,7 @@
 import akka.NotUsed;
 import akka.japi.function.Function;
 import akka.stream.*;
+import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Sink;
 import akka.stream.stage.AbstractInHandler;
@@ -15,9 +16,9 @@ public class MapWithExceptionSink<I, O0, O1 extends I> extends GraphStage<FanOut
         this.f = f;
     }
 
-    public final Inlet<I> in = Inlet.create("MapWithExceptionSink.in");
-    public final Outlet<O0> out = Outlet.create("MapWithExceptionSink.out");
-    public final Outlet<O1> outAlt = Outlet.create("MapWithExceptionSink.exceptionOut");
+    public final Inlet<I> in = Inlet.<I>create("MapWithExceptionSink.in");
+    public final Outlet<O0> out = Outlet.<O0>create("MapWithExceptionSink.out");
+    public final Outlet<O1> outAlt = Outlet.<O1>create("MapWithExceptionSink.exceptionOut");
 
     private final FanOutShape2<I, O0, O1> shape = new FanOutShape2<>(in, out, outAlt);
 
@@ -40,6 +41,8 @@ public class MapWithExceptionSink<I, O0, O1 extends I> extends GraphStage<FanOut
                                 }
                                 if (result != null) {
                                     push(out, result);
+                                } else if (!hasBeenPulled(in)) {
+                                    pull(in);
                                 }
                             }
 
@@ -69,17 +72,15 @@ public class MapWithExceptionSink<I, O0, O1 extends I> extends GraphStage<FanOut
         return shape;
     }
 
-    public static <I, O0, M> Graph<FlowShape<I, O0>, NotUsed> map(Function<I, O0> fun, Sink<I, M> excSink) {
-        return GraphDSL.create(builder -> {
-            try {
-                final FanOutShape2<I, O0, I> excSinkMap = builder.add(new MapWithExceptionSink<>(fun));
-                builder.to(builder.add(excSink)).fromOutlet(excSinkMap.out1());
-                return FlowShape.of(excSinkMap.in(), excSinkMap.out0());
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
+    public static <I, O0, M> Flow<I, O0, NotUsed> map(Function<I, O0> fun, Sink<I, M> excSink) {
+        Graph<FlowShape<I, O0>, NotUsed> flowShape = GraphDSL.create(builder -> {
+            final FanOutShape2<I, O0, I> excSinkMap = builder.add(new MapWithExceptionSink<>(fun));
+            builder.to(builder.add(excSink)).fromOutlet(excSinkMap.out1());
+            return FlowShape.of(excSinkMap.in(), excSinkMap.out0());
         });
+        return Flow.fromGraph(flowShape);
     }
+
 
 }
 
